@@ -5,7 +5,6 @@
     <meta charset="UTF-8" />
     <title>운송장번호 체크 프로그램</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="style.css" />
     <!-- SheetJS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -262,15 +261,17 @@
             }
             let html = `<table>
     <tr>
+      <th>번호</th>
       <th>운송장번호</th>
       <th>체크</th>
     </tr>`;
-            for (let row of waybills) {
+            waybills.forEach((row, i) => {
                 html += `<tr class="${row.checked ? 'checked' : 'default-row'}">
+      <td>${i + 1}</td>
       <td>${row.num}</td>
       <td>${row.checked ? '<span class="check-mark">✔️</span>' : ''}</td>
     </tr>`;
-            }
+            });
             html += '</table>';
             box.innerHTML = html;
             updateCounter(); // 개수체크
