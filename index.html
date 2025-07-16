@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>운송장번호 체크 프로그램</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- SheetJS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #fafbfc;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 840px;
+            margin: 24px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px #0001;
+            padding: 32px 28px;
+        }
+
+        .header {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .header input[type="file"] {
+            display: none;
+        }
+
+        .header label {
+            background: #53b36a;
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .header input[type="text"] {
+            flex: 1;
+            font-size: 16px;
+            padding: 10px 14px;
+            border-radius: 7px;
+            border: 1px solid #bbb;
+        }
+
+        .header button {
+            background: #eee;
+            border: none;
+            color: #666;
+            border-radius: 7px;
+            padding: 10px 18px;
+            margin-left: 4px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .scroll-box {
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f5f7fa;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+        }
+
+        th,
+        td {
+            text-align: center;
+            padding: 10px 6px;
+            background: red;
+        }
+
+        th {
+            background: #e8efe6;
+        }
+
+        tr.checked {
+            background: #dbffe3;
+        }
+
+        .check-mark {
+            color: #36b969;
+            font-size: 1.4em;
+        }
+
+        tr.default-row td {
+            background: #ffd4d4 !important;
+            color: #ab0000 !important;
+        }
+
+        tr.checked td {
+            background: #1dd174 !important;
+            color: #fff !important;
+            font-weight: bold;
+        }
+
+        .check-mark {
+            color: #fff !important;
+            font-size: 1.4em;
+        }
+
+        /* 모바일 대응 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 14px 2vw;
+                max-width: 98vw;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 7px;
+            }
+
+            .header label,
+            .header button,
+            .header input[type="text"] {
+                font-size: 16px;
+                padding: 12px 0;
+                width: 100%;
+                margin: 0 !important;
+            }
+
+            #waybillCounter {
+                margin: 8px 0 0 0;
+                text-align: right;
+            }
+
+            .scroll-box {
+                max-height: 50vh;
+                font-size: 15px;
+            }
+
+            table {
+                font-size: 15px;
+            }
+
+            th,
+            td {
+                padding: 10px 2px;
+                word-break: break-all;
+            }
+        }
+    </style>
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <label for="excelInput">엑셀 업로드</label>
+            <input type="file" id="excelInput" accept=".xlsx,.xls" / style="display:none">
+            <input type="text" id="barcodeInput" placeholder="운송장번호 or 바코드 스캔 후 Enter" autocomplete="off" />
+            <span id="waybillCounter" style="margin-left:auto; font-weight:bold; font-size:1.1em;"></span>
+            <button id="resetBtn">초기화</button>
+            <button id="downloadCheckedBtn" style="background:#006738; color:#fff;">체크된 엑셀 다운로드</button>
+        </div>
+        <div class="scroll-box" id="tableBox">
+            <!-- 엑셀 데이터 표가 여기 생성됨 -->
+        </div>
+    </div>
+
+    <script>
+        let waybills = []; // [{num: '1234567890', checked: false}]
+        let current = '';
+
+        // 엑셀 업로드
+        document.getElementById('excelInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                const data = new Uint8Array(ev.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const wsname = workbook.SheetNames[0];
+                const ws = workbook.Sheets[wsname];
+                const arr = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                // 첫 컬럼만 추출, "-"와 공백 제거
+                waybills = arr.slice(1) // 첫 행은 헤더로 가정
+                    .map(row => (row[0] ? String(row[0]).replace(/[-\s]/g, '') : null))
+                    .filter(v => !!v)
+                    .map(num => ({ num, checked: false }));
+                renderTable();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        function updateCounter() {
+            const checked = waybills.filter(row => row.checked).length;
+            const total = waybills.length;
+            document.getElementById('waybillCounter').textContent = `체크: ${checked} / 전체: ${total}`;
+        }
+
+        // 체크된 운송장 다운로드
+        document.getElementById('downloadCheckedBtn').onclick = function () {
+            // 체크된 것만 추출
+            const checkedRows = waybills.filter(row => row.checked).map(row => [row.num]);
+            if (checkedRows.length === 0) {
+                alert('체크된 운송장번호가 없습니다!');
+                return;
+            }
+            // 헤더 추가
+            checkedRows.unshift(['체크된 운송장번호']);
+            // 시트 생성
+            const ws = XLSX.utils.aoa_to_sheet(checkedRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'CheckedWaybills');
+            XLSX.writeFile(wb, 'checked_waybills.xlsx');
+        };
+
+
+        // 운송장 입력 처리
+        document.getElementById('barcodeInput').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                const value = this.value.replace(/[-\s]/g, '');
+                if (value) {
+                    current = value;
+                    // 매칭 및 체크
+                    let found = false;
+                    for (let row of waybills) {
+                        if (row.num === current && !row.checked) {
+                            row.checked = true;
+                            found = true;
+                            break;
+                        }
+                    }
+                    renderTable();
+                }
+                this.value = '';
+            }
+        });
+
+        // 초기화 버튼
+        document.getElementById('resetBtn').onclick = function () {
+            waybills = waybills.map(row => ({ ...row, checked: false }));
+            renderTable();
+            document.getElementById('barcodeInput').value = '';
+        };
+
+        function renderTable() {
+            const box = document.getElementById('tableBox');
+            if (waybills.length === 0) {
+                box.innerHTML = '<div style="padding: 32px; color: #999; text-align:center;">엑셀 파일을 업로드 해주세요.</div>';
+                updateCounter(); // 개수체크
+                return;
+            }
+            let html = `<table>
+    <tr>
+      <th>운송장번호</th>
+      <th>체크</th>
+    </tr>`;
+            for (let row of waybills) {
+                html += `<tr class="${row.checked ? 'checked' : 'default-row'}">
+      <td>${row.num}</td>
+      <td>${row.checked ? '<span class="check-mark">✔️</span>' : ''}</td>
+    </tr>`;
+            }
+            html += '</table>';
+            box.innerHTML = html;
+            updateCounter(); // 개수체크
+        }
+
+    </script>
+</body>
+
+</html>
