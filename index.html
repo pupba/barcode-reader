@@ -2,282 +2,767 @@
 <html lang="ko">
 
 <head>
-    <meta charset="UTF-8" />
-    <title>운송장번호 체크 프로그램</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- SheetJS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>엑셀 데이터 자동 처리</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: sans-serif;
-            background: #fafbfc;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', Arial, sans-serif;
             margin: 0;
             padding: 0;
+            background: #f7f8fa;
+            color: #222;
+        }
+
+        h1 {
+            font-size: 1.8rem;
             text-align: center;
+            margin: 30px 0 20px 0;
+            color: #444;
+            font-weight: 700;
         }
 
-        .container {
-            max-width: 840px;
-            margin: 24px auto;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 4px 18px #0001;
-            padding: 32px 28px;
-        }
-
-        .header {
+        .controls {
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 24px;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px 0 #e6e9ef33;
         }
 
-        .header input[type="file"] {
+        .controls label,
+        .controls button,
+        .controls input[type="file"],
+        .controls input[type="text"],
+        .controls select {
+            font-size: 1rem;
+        }
+
+        .controls button,
+        .controls select {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background: #4285f4;
+            color: #fff;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .controls button:hover {
+            background: #1a73e8;
+        }
+
+        .controls input[type="file"] {
             display: none;
         }
 
-        .header label {
-            background: #53b36a;
-            color: #fff;
-            padding: 10px 22px;
-            border-radius: 7px;
+        .controls label[for="excelFile"] {
+            background: #eaeaec;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px 16px;
+            color: #333;
             cursor: pointer;
-            font-size: 15px;
         }
 
-        .header input[type="text"] {
-            flex: 1;
-            font-size: 16px;
-            padding: 10px 14px;
-            border-radius: 7px;
+        .controls input[type="text"] {
+            padding: 8px;
             border: 1px solid #bbb;
+            border-radius: 5px;
+            min-width: 160px;
+            margin-right: 5px;
         }
 
-        .header button {
-            background: #eee;
-            border: none;
-            color: #666;
-            border-radius: 7px;
-            padding: 10px 18px;
-            margin-left: 4px;
-            cursor: pointer;
-            font-size: 15px;
+        #productFilter {
+            min-width: 110px;
+            color: #333;
         }
 
-        .scroll-box {
-            max-height: 380px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            background: #f5f7fa;
+        #productCounts {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 6px 0 #e1e3e8;
+            padding: 16px 18px 10px 18px;
+            margin-bottom: 18px;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 500px;
+        }
+
+        #productCounts h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: #2979ff;
+        }
+
+        #productCounts p {
+            font-size: 1rem;
+            margin: 5px 0;
+            letter-spacing: 0.02em;
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
-            font-size: 16px;
+            max-width: 880px;
+            margin: 0 auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px 0 #e6e9ef77;
+            overflow: hidden;
+            word-break: keep-all;
+            font-size: 1rem;
         }
 
         th,
         td {
+            padding: 12px 8px;
             text-align: center;
-            padding: 10px 6px;
-            background: red;
         }
 
         th {
-            background: #e8efe6;
+            background: #e3ecff;
+            color: #1a237e;
+            font-weight: 700;
+            font-size: 1.03em;
+            letter-spacing: 0.03em;
         }
 
-        tr.checked {
-            background: #dbffe3;
+        tr {
+            transition: background 0.2s, color 0.2s;
         }
 
-        .check-mark {
-            color: #36b969;
-            font-size: 1.4em;
+        /* 붉은 배경 (초기 행) */
+        tbody tr {
+            background: #FF6347;
+            /* tomato */
+            color: #fff;
         }
 
-        tr.default-row td {
-            background: #ffd4d4 !important;
-            color: #ab0000 !important;
+        /* 스캔된 행은 js에서 #98FB98(연두색)/#000으로 덮어씀 */
+
+        /* 체크박스 크게 */
+        input[type="checkbox"] {
+            transform: scale(1.3);
+            accent-color: #4285f4;
         }
 
-        tr.checked td {
-            background: #1dd174 !important;
-            color: #fff !important;
-            font-weight: bold;
-        }
+        /* 모바일, 태블릿 대응 */
+        @media (max-width: 900px) {
+            body {
+                font-size: 97%;
+            }
 
-        .check-mark {
-            color: #fff !important;
-            font-size: 1.4em;
-        }
+            h1 {
+                font-size: 1.35rem;
+            }
 
-        /* 모바일 대응 */
-        @media (max-width: 600px) {
-            .container {
-                padding: 14px 2vw;
+            #productCounts,
+            table {
                 max-width: 98vw;
             }
+        }
 
-            .header {
+        @media (max-width: 600px) {
+            .controls {
                 flex-direction: column;
-                align-items: stretch;
-                gap: 7px;
+                gap: 8px;
+                padding: 8px 4px;
             }
 
-            .header label,
-            .header button,
-            .header input[type="text"] {
-                font-size: 16px;
-                padding: 12px 0;
-                width: 100%;
-                margin: 0 !important;
-            }
-
-            #waybillCounter {
-                margin: 8px 0 0 0;
-                text-align: right;
-            }
-
-            .scroll-box {
-                max-height: 50vh;
-                font-size: 15px;
+            #productCounts {
+                padding: 12px 6px 7px 6px;
             }
 
             table {
-                font-size: 15px;
+                font-size: 0.96rem;
             }
 
             th,
             td {
-                padding: 10px 2px;
-                word-break: break-all;
+                padding: 7px 3px;
+            }
+
+            /* 테이블 가로 스크롤 유도 */
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            thead {
+                display: none;
+            }
+
+            tbody tr {
+                margin-bottom: 10px;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px 0 #ccc;
+            }
+
+            td {
+                text-align: right;
+                position: relative;
+                padding-left: 45%;
+                min-height: 22px;
+            }
+
+            td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: 40%;
+                white-space: nowrap;
+                color: #fff;
+                font-weight: bold;
+                text-align: left;
             }
         }
-    </style>
 
+        /* ----------------------------------- */
+        /*          전체 레이아웃 및 폰트         */
+        /* ----------------------------------- */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0;
+            background-color: #f8f9fa;
+            /* 부드러운 배경색 */
+            color: #212529;
+            /* 가독성 높은 기본 글자색 */
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #343a40;
+        }
+
+        /* ----------------------------------- */
+        /*            컨트롤 패널 (버튼 등)         */
+        /* ----------------------------------- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .btn,
+        .controls label[for="excelFile"],
+        .controls select,
+        .controls input[type="text"] {
+            padding: 10px 18px;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            white-space: nowrap;
+        }
+
+        .btn {
+            background-image: linear-gradient(to right, #4e54c8 0%, #8f94fb 51%, #4e54c8 100%);
+            background-size: 200% auto;
+            color: white;
+            border: none;
+        }
+
+        .btn:hover {
+            background-position: right center;
+            /* 그라데이션 이동 효과 */
+            box-shadow: 0 4px 15px rgba(78, 84, 200, 0.4);
+        }
+
+        .btn-secondary {
+            background-image: linear-gradient(to right, #6c757d 0%, #adb5bd 51%, #6c757d 100%);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .controls label[for="excelFile"] {
+            background-color: #f1f3f5;
+        }
+
+        .controls label[for="excelFile"]:hover {
+            background-color: #e9ecef;
+        }
+
+        .controls input[type="file"] {
+            display: none;
+        }
+
+        .controls input[type="text"]:focus,
+        .controls select:focus {
+            border-color: #8f94fb;
+            box-shadow: 0 0 0 3px rgba(143, 148, 251, 0.25);
+            outline: none;
+        }
+
+        /* ----------------------------------- */
+        /*            상품별 카운트 박스          */
+        /* ----------------------------------- */
+        #productCounts {
+            background-color: #ffffff;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        #productCounts h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.25rem;
+            color: #4e54c8;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 15px;
+        }
+
+        #productCounts p {
+            margin: 8px 0;
+            font-size: 1rem;
+        }
+
+        /* ----------------------------------- */
+        /*              데이터 테이블             */
+        /* ----------------------------------- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+            overflow: hidden;
+            font-size: 0.95rem;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f1f3f5;
+            font-weight: 700;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr {
+            transition: background-color 0.3s, color 0.3s;
+            border-bottom: 1px solid #f1f3f5;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        /* 초기 상태 (붉은색 계열) */
+        tbody tr {
+            background-color: #ffebee;
+            /* 부드러운 붉은색 */
+            color: #c62828;
+        }
+
+        /* JS에서 스캔 시 적용할 색상 (연두색 계열) */
+        /* row.style.backgroundColor = '#e8f5e9'; // 부드러운 녹색 */
+        /* row.style.color = '#2e7d32'; */
+
+        input[type="checkbox"] {
+            transform: scale(1.4);
+            accent-color: #4e54c8;
+        }
+
+        /* ----------------------------------- */
+        /*         모바일/태블릿 반응형 스타일      */
+        /* ----------------------------------- */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            table {
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            table thead {
+                display: none;
+            }
+
+            table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e9ecef;
+                background-clip: padding-box;
+                /* 그림자가 배경색을 따라가도록 설정 */
+            }
+
+            table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                padding: 10px 15px;
+                border-bottom: 1px solid #f1f3f5;
+            }
+
+            table td:last-child {
+                border-bottom: none;
+            }
+
+            table td:before {
+                content: attr(data-label);
+                font-weight: 700;
+                margin-right: 10px;
+                color: inherit;
+                /* 행의 글자색을 따름 */
+            }
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <label for="excelInput">엑셀 업로드</label>
-            <input type="file" id="excelInput" accept=".xlsx,.xls" / style="display:none">
-            <input type="text" id="barcodeInput" placeholder="운송장번호 or 바코드 스캔 후 Enter" autocomplete="off" />
-            <span id="waybillCounter" style="margin-left:auto; font-weight:bold; font-size:1.1em;"></span>
-            <button id="resetBtn">초기화</button>
-            <button id="downloadCheckedBtn" style="background:#006738; color:#fff;">체크된 엑셀 다운로드</button>
-        </div>
-        <div class="scroll-box" id="tableBox">
-            <!-- 엑셀 데이터 표가 여기 생성됨 -->
-        </div>
+
+    <h1>엑셀 파일 자동 처리</h1>
+
+    <div class="controls">
+        <label for="excelFile"
+            style="padding: 8px 12px; border: 1px solid #ccc; background-color: #f2f2f2; cursor: pointer;">엑셀 파일
+            선택</label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="loadExcel()" style="display:none;">
+        <button onclick="resetData()">초기화</button>
+        <select id="productFilter" onchange="filterTableByProduct()"
+            style="display: none; padding: 8px; font-size: 14px;"></select>
+        <input type="text" id="trackingNumberInput" placeholder="운송장번호 입력 후 Enter"
+            onkeydown="checkAndHighlightRow(event)" style="padding: 8px; font-size: 14px; width: 200px;">
+        <label style="margin-left: 20px;">
+            체크된 항목만 다운로드
+        </label>
+        <button onclick="downloadExcel()">엑셀 다운로드</button>
     </div>
 
-    <script>
-        let waybills = []; // [{num: '1234567890', checked: false}]
-        let current = '';
+    <div id="productCounts">
+        <h3>상품별 건수</h3>
+        <p>엑셀 파일을 선택하면 자동으로 처리됩니다.</p>
+    </div>
 
-        // 엑셀 업로드
-        document.getElementById('excelInput').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" onclick="toggleAllCheckboxes(this)"></th>
+                <th>No.</th>
+                <th>운송장번호</th>
+                <th>상품명</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        // 전역 변수로 데이터 저장
+        let originalData = [];
+        // [추가된 부분] 첫 번째 일치 행을 식별하기 위한 플래그
+
+
+        function loadExcel() {
+            const file = document.getElementById('excelFile').files[0];
+            if (!file) {
+                // 파일 선택 취소 시 함수 종료
+                return;
+            }
+
             const reader = new FileReader();
-            reader.onload = function (ev) {
-                const data = new Uint8Array(ev.target.result);
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const wsname = workbook.SheetNames[0];
-                const ws = workbook.Sheets[wsname];
-                const arr = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                // 첫 컬럼만 추출, "-"와 공백 제거
-                waybills = arr.slice(1) // 첫 행은 헤더로 가정
-                    .map(row => (row[0] ? String(row[0]).replace(/[-\s]/g, '') : null))
-                    .filter(v => !!v)
-                    .map(num => ({ num, checked: false }));
-                renderTable();
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                // '운송장번호'와 '상품명'이 있는 데이터만 추출
+                originalData = jsonData
+                    .filter(row => row['운송장번호'] && row['상품명'])
+                    .map(row => ({
+                        '운송장번호': row['운송장번호'],
+                        '상품명': row['상품명']
+                    }));
+
+                if (originalData.length === 0) {
+                    alert("엑셀 파일에서 '운송장번호' 또는 '상품명' 열을 찾을 수 없거나 데이터가 없습니다.");
+                    resetData();
+                    return;
+                }
+
+                // 상품명 기준으로 정렬
+                originalData.sort((a, b) => {
+                    return String(a['상품명']).localeCompare(String(b['상품명']));
+                });
+
+                displayData(originalData);
+                updateProductCounts();
+                populateProductFilter();
             };
             reader.readAsArrayBuffer(file);
-        });
-        function updateCounter() {
-            const checked = waybills.filter(row => row.checked).length;
-            const total = waybills.length;
-            document.getElementById('waybillCounter').textContent = `체크: ${checked} / 전체: ${total}`;
         }
 
-        // 체크된 운송장 다운로드
-        document.getElementById('downloadCheckedBtn').onclick = function () {
-            // 체크된 것만 추출
-            const checkedRows = waybills.filter(row => row.checked).map(row => [row.num]);
-            if (checkedRows.length === 0) {
-                alert('체크된 운송장번호가 없습니다!');
-                return;
-            }
-            // 헤더 추가
-            checkedRows.unshift(['체크된 운송장번호']);
-            // 시트 생성
-            const ws = XLSX.utils.aoa_to_sheet(checkedRows);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'CheckedWaybills');
-            XLSX.writeFile(wb, 'checked_waybills.xlsx');
-        };
+        function displayData(data) {
+            const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = ""; // 기존 데이터 초기화
 
-
-        // 운송장 입력 처리
-        document.getElementById('barcodeInput').addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                const value = this.value.replace(/[-\s]/g, '');
-                if (value) {
-                    current = value;
-                    // 매칭 및 체크
-                    let found = false;
-                    for (let row of waybills) {
-                        if (row.num === current && !row.checked) {
-                            row.checked = true;
-                            found = true;
-                            break;
-                        }
-                    }
-                    renderTable();
-                }
-                this.value = '';
-            }
-        });
-
-        // 초기화 버튼
-        document.getElementById('resetBtn').onclick = function () {
-            waybills = waybills.map(row => ({ ...row, checked: false }));
-            renderTable();
-            document.getElementById('barcodeInput').value = '';
-        };
-
-        function renderTable() {
-            const box = document.getElementById('tableBox');
-            if (waybills.length === 0) {
-                box.innerHTML = '<div style="padding: 32px; color: #999; text-align:center;">엑셀 파일을 업로드 해주세요.</div>';
-                updateCounter(); // 개수체크
-                return;
-            }
-            let html = `<table>
-    <tr>
-      <th>번호</th>
-      <th>운송장번호</th>
-      <th>체크</th>
-    </tr>`;
-            waybills.forEach((row, i) => {
-                html += `<tr class="${row.checked ? 'checked' : 'default-row'}">
-      <td>${i + 1}</td>
-      <td>${row.num}</td>
-      <td>${row.checked ? '<span class="check-mark">✔️</span>' : ''}</td>
-    </tr>`;
+            data.forEach((row, index) => {
+                const newRow = tableBody.insertRow();
+                newRow.innerHTML = `
+                    <td data-label="선택"><input type="checkbox" class="row-checkbox" disabled></td>
+                    <td data-label="No">${index + 1}</td>
+                    <td data-label="운송장번호">${row['운송장번호']}</td>
+                    <td data-label="상품명">${row['상품명']}</td>
+                `;
+                // [수정된 부분] 모든 행의 초기 배경색을 붉은색으로 설정
+                newRow.style.backgroundColor = '#FF6347'; // Tomato
+                newRow.style.color = 'white';
             });
-            html += '</table>';
-            box.innerHTML = html;
-            updateCounter(); // 개수체크
         }
 
+        function calculateProductCounts(data) {
+            const countsDiv = document.getElementById('productCounts');
+            const counts = data.reduce((acc, row) => {
+                const productName = row['상품명'];
+                acc[productName] = (acc[productName] || 0) + 1;
+                return acc;
+            }, {});
+
+            countsDiv.innerHTML = '<h3>상품별 건수</h3>';
+            if (Object.keys(counts).length === 0) {
+                countsDiv.innerHTML += '<p>데이터가 없습니다.</p>';
+            } else {
+                for (const [product, count] of Object.entries(counts)) {
+                    countsDiv.innerHTML += `<p>${product}: ${count}건</p>`;
+                }
+            }
+        }
+
+        function resetData() {
+            document.getElementById('excelFile').value = "";
+            const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = "";
+            const countsDiv = document.getElementById('productCounts');
+            countsDiv.innerHTML = '<h3>상품별 건수</h3><p>엑셀 파일을 선택하면 자동으로 처리됩니다.</p>';
+            originalData = [];
+            document.getElementById('trackingNumberInput').value = "";
+            const filter = document.getElementById('productFilter');
+            filter.style.display = 'none';
+            filter.innerHTML = '';
+            updateProductCounts();
+            // 전체 선택 체크박스도 초기화
+            const masterCheckbox = document.querySelector('#dataTable thead input[type="checkbox"]');
+            if (masterCheckbox) masterCheckbox.checked = false;
+        }
+
+        function toggleAllCheckboxes(source) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            for (const checkbox of checkboxes) {
+                checkbox.checked = source.checked;
+            }
+        }
+
+        function downloadExcel() {
+            const downloadCheckedOnly = document.getElementById('downloadChecked').checked;
+            const table = document.getElementById('dataTable');
+            const rows = table.getElementsByTagName('tr');
+            let dataToExport = [];
+
+            if (rows.length <= 1) {
+                alert("다운로드할 데이터가 없습니다.");
+                return;
+            }
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const checkbox = row.querySelector('.row-checkbox');
+
+                if (!downloadCheckedOnly || checkbox.checked) {
+                    const cells = row.getElementsByTagName('td');
+                    dataToExport.push({
+                        "운송장번호": cells[2].innerText,
+                        "상품명": cells[3].innerText
+                    });
+                }
+            }
+
+            if (dataToExport.length === 0 && downloadCheckedOnly) {
+                alert("다운로드할 항목을 선택해주세요.");
+                return;
+            } else if (dataToExport.length === 0) {
+                alert("다운로드할 데이터가 없습니다.");
+                return;
+            }
+
+            const newSheet = XLSX.utils.json_to_sheet(dataToExport);
+            const newWorkbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWorkbook, newSheet, "추출결과");
+            XLSX.writeFile(newWorkbook, "추출된_데이터.xlsx");
+        }
+        // [추가된 부분] 운송장번호로 행 찾기, 체크 및 하이라이트 함수
+        function checkAndHighlightRow(event) {
+            if (event.key !== 'Enter') return;
+
+            event.preventDefault();
+            const input = event.target;
+            const rawTrackingNumber = input.value.trim();
+            if (!rawTrackingNumber) return;
+
+            // [수정된 부분 시작]
+            // 1. 입력값에서 '-'를 모두 제거합니다.
+            const cleanedTrackingNumber = rawTrackingNumber.replace(/-/g, '');
+
+            // 2. 제거 후 길이가 12자리인지 확인합니다.
+            if (cleanedTrackingNumber.length !== 12) {
+                alert("'-'를 제외한 운송장번호는 12자리여야 합니다.\n(입력된 번호: " + rawTrackingNumber + ")");
+                input.select(); // 사용자가 쉽게 수정하도록 텍스트를 선택 상태로 둡니다.
+                return; // 함수 실행을 중단합니다.
+            }
+            // [수정된 부분 끝]
+
+            const rows = document.getElementById('dataTable').getElementsByTagName('tbody')[0].rows;
+            for (const row of rows) {
+                const trackingNumberCell = row.querySelector('[data-label="운송장번호"]');
+
+                // [수정] 테이블의 운송장번호에서도 '-'를 제거하고 비교합니다.
+                const cellTrackingNumber = trackingNumberCell.innerText.replace(/-/g, '');
+
+                if (cellTrackingNumber === cleanedTrackingNumber) {
+                    const checkbox = row.querySelector('.row-checkbox');
+                    if (checkbox.checked) {
+                        input.value = "";
+                        return;
+                    }
+
+                    checkbox.checked = true;
+                    row.style.backgroundColor = '#98FB98'; // PaleGreen
+                    row.style.color = 'black';
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    updateProductCounts();
+                    input.value = "";
+                    return;
+                }
+            }
+
+            // 일치하는 번호가 없을 경우, 사용자가 입력했던 원본 번호를 보여줍니다.
+            input.value = "";
+            return;
+        }
+        // [신규 함수] 상품별 체크된 수 / 총 수량 계산 및 표시
+        function updateProductCounts() {
+            const countsDiv = document.getElementById('productCounts');
+            if (originalData.length === 0) {
+                countsDiv.innerHTML = '<h3>상품별 건수</h3><p>엑셀 파일을 선택하면 자동으로 처리됩니다.</p>';
+                return;
+            }
+
+            const checkedCounts = {};
+            const totalCounts = {};
+
+            // 총 개수 계산
+            originalData.forEach(row => {
+                const productName = row['상품명'];
+                totalCounts[productName] = (totalCounts[productName] || 0) + 1;
+            });
+
+            // 체크된 개수 계산
+            const rows = document.getElementById('dataTable').getElementsByTagName('tbody')[0].rows;
+            for (const row of rows) {
+                const checkbox = row.querySelector('.row-checkbox');
+                if (checkbox.checked) {
+                    const productName = row.cells[3].innerText;
+                    checkedCounts[productName] = (checkedCounts[productName] || 0) + 1;
+                }
+            }
+
+            countsDiv.innerHTML = '<h3>상품별 건수</h3>';
+            // 상품명 순으로 정렬하여 표시
+            Object.keys(totalCounts).sort().forEach(product => {
+                const checked = checkedCounts[product] || 0;
+                const total = totalCounts[product];
+                countsDiv.innerHTML += `<p>${product}: ${checked} / ${total}건</p>`;
+            });
+        }
+
+        // [신규 함수] 상품명으로 필터 드롭다운 생성
+        function populateProductFilter() {
+            const filter = document.getElementById('productFilter');
+            const products = [...new Set(originalData.map(item => item.상품명))].sort();
+
+            filter.innerHTML = '<option value="all">전체 보기</option>';
+            products.forEach(product => {
+                filter.innerHTML += `<option value="${product}">${product}</option>`;
+            });
+            filter.style.display = 'inline-block';
+        }
+
+        // [신규 함수] 상품명으로 테이블 필터링
+        function filterTableByProduct() {
+            const selectedProduct = document.getElementById('productFilter').value;
+            const rows = document.getElementById('dataTable').getElementsByTagName('tbody')[0].rows;
+
+            for (const row of rows) {
+                const productName = row.cells[3].innerText;
+                if (selectedProduct === 'all' || productName === selectedProduct) {
+                    row.style.display = ''; // 보이기
+                } else {
+                    row.style.display = 'none'; // 숨기기
+                }
+            }
+        }
     </script>
+
 </body>
 
 </html>
